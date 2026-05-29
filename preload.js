@@ -11,6 +11,9 @@ contextBridge.exposeInMainWorld("pew", {
   // Mode / pause toggles fired by global shortcuts.
   onToggleMode: (cb) => ipcRenderer.on("toggle-mode", () => cb()),
   onTogglePause: (cb) => ipcRenderer.on("toggle-pause", () => cb()),
+  onCycleTheme: (cb) => ipcRenderer.on("cycle-theme", () => cb()),
+  // Sample the desktop behind the overlay (for the "auto" color theme).
+  sampleBg: () => ipcRenderer.invoke("sample-bg"),
   // Which global shortcuts actually bound (so the HUD shows correct hints).
   onShortcuts: (cb) => ipcRenderer.on("shortcuts", (_e, map) => cb(map)),
   // Window move / resize / fullscreen.

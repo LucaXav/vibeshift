@@ -167,7 +167,7 @@ body {
   width: 34px;
   height: 34px;
   padding: 0;
-  color: #fff;
+  color: var(--ink);
   background: rgba(0, 0, 0, 0.35);
   border: 1px solid rgba(255, 255, 255, 0.65); /* keep the boxes */
   border-radius: 5px;

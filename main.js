@@ -1,6 +1,6 @@
 // PewPew — transparent, click-through, always-on-top Asteroids overlay.
 // Main process: window creation, click-through wiring, global shortcuts, IPC.
-const { app, BrowserWindow, ipcMain, globalShortcut, screen } = require("electron");
+const { app, BrowserWindow, ipcMain, globalShortcut, screen, desktopCapturer } = require("electron");
 const path = require("path");
 const fs = require("fs");
 
@@ -123,6 +123,10 @@ app.whenReady().then(() => {
       ["CommandOrControl+Shift+P", "CommandOrControl+Alt+P", "Alt+Shift+P"],
       () => win && win.webContents.send("toggle-pause")
     ),
+    color: registerFirst(
+      ["CommandOrControl+Shift+C", "CommandOrControl+Alt+C", "Alt+Shift+C"],
+      () => win && win.webContents.send("cycle-theme")
+    ),
     quit: registerFirst(
       ["CommandOrControl+Shift+Q", "CommandOrControl+Alt+Q", "Alt+Shift+Q", "CommandOrControl+Shift+X"],
       () => app.quit()
@@ -188,6 +192,64 @@ ipcMain.on("win-toggle-full", () => {
     isFull = false;
   }
   win.webContents.send("full-state", isFull);
+});
+
+// --- Background sampling (for the "auto" color theme) -----------------------
+// Capture the display behind the overlay, average the brightness under the
+// window, and report it so the renderer can pick a contrasting graphic color.
+ipcMain.handle("sample-bg", async () => {
+  if (!win) return null;
+  try {
+    const disp = screen.getDisplayMatching(win.getBounds());
+    const sources = await desktopCapturer.getSources({
+      types: ["screen"],
+      thumbnailSize: { width: 360, height: 220 },
+    });
+    const src =
+      sources.find((s) => String(s.display_id) === String(disp.id)) || sources[0];
+    if (!src) return null;
+    const img = src.thumbnail;
+    const sz = img.getSize();
+    if (!sz.width || !sz.height) return null;
+    const bmp = img.toBitmap(); // BGRA
+
+    // Map the window's bounds onto the thumbnail and average that region.
+    const b = win.getBounds();
+    const fx = (b.x - disp.bounds.x) / disp.bounds.width;
+    const fy = (b.y - disp.bounds.y) / disp.bounds.height;
+    let x0 = Math.max(0, Math.floor(fx * sz.width));
+    let y0 = Math.max(0, Math.floor(fy * sz.height));
+    let x1 = Math.min(sz.width, Math.ceil((fx + b.width / disp.bounds.width) * sz.width));
+    let y1 = Math.min(sz.height, Math.ceil((fy + b.height / disp.bounds.height) * sz.height));
+    if (x1 <= x0 || y1 <= y0) {
+      x0 = 0;
+      y0 = 0;
+      x1 = sz.width;
+      y1 = sz.height;
+    }
+
+    let r = 0,
+      g = 0,
+      bl = 0,
+      n = 0;
+    for (let y = y0; y < y1; y += 2) {
+      for (let x = x0; x < x1; x += 2) {
+        const i = (y * sz.width + x) * 4;
+        bl += bmp[i];
+        g += bmp[i + 1];
+        r += bmp[i + 2];
+        n++;
+      }
+    }
+    if (!n) return null;
+    r /= n;
+    g /= n;
+    bl /= n;
+    const lum = (0.299 * r + 0.587 * g + 0.114 * bl) / 255;
+    return { lum, r: Math.round(r), g: Math.round(g), b: Math.round(bl) };
+  } catch (e) {
+    return null;
+  }
 });
 
 ipcMain.handle("get-state", () => ({ through }));

@@ -49,6 +49,23 @@
   const SCORES = { 3: 20, 2: 50, 1: 100 };
   const CHROME_HIDE_MS = 4000; // controls/frame fade out after this idle time
 
+  // Color themes. "auto" samples the desktop behind the transparent window and
+  // flips to a contrasting color so the graphics pop over whatever they sit on.
+  const THEMES = [
+    { id: "white", ink: "#ffffff", glow: "rgba(255,255,255,0.6)" },
+    { id: "green", ink: "#33ff66", glow: "rgba(51,255,102,0.55)" }, // retro CRT phosphor
+    { id: "amber", ink: "#ffb22e", glow: "rgba(255,178,46,0.5)" },
+    { id: "cyan", ink: "#3ad7ff", glow: "rgba(58,215,255,0.5)" },
+    { id: "auto", ink: "#33ff66", glow: "rgba(51,255,102,0.55)" }, // resolved live
+  ];
+  // Colors auto-mode picks based on the sampled background brightness.
+  const AUTO_DARK = { ink: "#33ff66", glow: "rgba(51,255,102,0.6)" }; // dark bg -> green
+  const AUTO_LIGHT = { ink: "#0c1230", glow: "rgba(12,18,48,0.45)" }; // light bg -> ink
+  let themeIndex = 0;
+  let ink = "#ffffff";
+  let glow = "rgba(255,255,255,0.6)";
+  let autoTimer = null;
+
   let displayMode = "play"; // 'play' | 'ambient'
   let playState = "ready"; // 'ready' | 'running' | 'over'
   let paused = false;
@@ -67,6 +84,9 @@
   let hiscore = 0;
   try {
     hiscore = parseInt(localStorage.getItem("pewpew.hi") || "0", 10) || 0;
+    const savedTheme = localStorage.getItem("pewpew.theme");
+    const idx = THEMES.findIndex((t) => t.id === savedTheme);
+    if (idx >= 0) themeIndex = idx;
   } catch (e) {}
 
   // --- HUD elements ----------------------------------------------------------
@@ -86,6 +106,7 @@
     btnMode: document.getElementById("btn-mode"),
     btnPause: document.getElementById("btn-pause"),
     btnQuit: document.getElementById("btn-quit"),
+    btnColor: document.getElementById("btn-color"),
   };
 
   // Swap the pause button between |‍| (pause) and ▶ (play) to mirror state.
@@ -463,11 +484,11 @@
   function render() {
     ctx.clearRect(0, 0, W, H); // fully transparent each frame
 
-    ctx.strokeStyle = "#ffffff";
-    ctx.fillStyle = "#ffffff";
+    ctx.strokeStyle = ink;
+    ctx.fillStyle = ink;
     ctx.lineWidth = 2;
     ctx.lineJoin = "round";
-    ctx.shadowColor = "rgba(255,255,255,0.6)";
+    ctx.shadowColor = glow;
     ctx.shadowBlur = 6;
 
     for (const a of asteroids) drawAsteroid(a);
@@ -517,6 +538,52 @@
   function togglePause() {
     paused = !paused;
     updatePauseIcon();
+  }
+
+  // --- Color themes ----------------------------------------------------------
+  function setInk(i, g) {
+    ink = i;
+    glow = g;
+    document.documentElement.style.setProperty("--ink", i);
+    document.documentElement.style.setProperty("--glow", "0 0 6px " + g);
+  }
+  function stopAuto() {
+    if (autoTimer) {
+      clearInterval(autoTimer);
+      autoTimer = null;
+    }
+  }
+  async function sampleOnce() {
+    if (!bridge) return;
+    const s = await bridge.sampleBg();
+    if (!s || typeof s.lum !== "number") return;
+    const pick = s.lum < 0.5 ? AUTO_DARK : AUTO_LIGHT;
+    setInk(pick.ink, pick.glow);
+  }
+  function startAuto() {
+    if (!bridge) {
+      setInk(AUTO_DARK.ink, AUTO_DARK.glow); // browser fallback (no capture API)
+      return;
+    }
+    sampleOnce();
+    stopAuto();
+    autoTimer = setInterval(sampleOnce, 2000); // re-check the background
+  }
+  function applyTheme() {
+    const t = THEMES[themeIndex];
+    if (t.id === "auto") startAuto();
+    else {
+      stopAuto();
+      setInk(t.ink, t.glow);
+    }
+    if (el.btnColor) el.btnColor.title = "Color: " + t.id.toUpperCase() + " — click to change";
+    try {
+      localStorage.setItem("pewpew.theme", t.id);
+    } catch (e) {}
+  }
+  function cycleTheme() {
+    themeIndex = (themeIndex + 1) % THEMES.length;
+    applyTheme();
   }
 
   // Show the chrome and (re)arm the idle hide timer.
@@ -622,6 +689,7 @@
     el.btnMode.addEventListener("click", toggleMode);
     el.btnPause.addEventListener("click", togglePause);
     el.btnQuit.addEventListener("click", () => bridge && bridge.quit());
+    if (el.btnColor) el.btnColor.addEventListener("click", cycleTheme);
 
     // Resize grips (the rest of the surface is a native drag region).
     el.frame.querySelectorAll(".grip").forEach((g) => {
@@ -650,6 +718,7 @@
 
   setupControls();
   updatePauseIcon();
+  applyTheme();
   refreshBounds();
 
   if (bridge) {
@@ -662,6 +731,7 @@
     });
     bridge.onToggleMode(toggleMode);
     bridge.onTogglePause(togglePause);
+    bridge.onCycleTheme(cycleTheme);
     bridge.onFull(() => refreshBounds());
     bridge.onShortcuts((map) => {
       const pretty = (a) =>
@@ -719,5 +789,7 @@
     togglePause,
     toggleMode,
     popScore,
+    cycleTheme,
+    theme: () => ({ id: THEMES[themeIndex].id, ink, glow }),
   };
 })();

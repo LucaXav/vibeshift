@@ -24,8 +24,15 @@ underneath.
     collisions (3 lives).
   - **AMBIENT** — asteroids just drift across the screen, screensaver-style,
     for when you don't want to play but want the vibe.
-- **8-bit white vector look** — chunky white wireframe ship & asteroids, pixel
-  bullets, particle explosions. Shoot a big rock → it breaks into smaller ones.
+- **8-bit vector look** — chunky wireframe ship & asteroids, pixel bullets,
+  particle explosions. Shoot a big rock → it breaks into smaller ones.
+- **Color themes** — cycle **White → Retro Green (CRT phosphor) → Amber → Cyan →
+  Auto**. The retro green reads great over a code editor; **Auto** samples the
+  desktop behind the transparent window and flips the graphics to a contrasting
+  color (e.g. green on a dark terminal) so they stay visible. The whole UI
+  recolors together. Click the color swatch icon or press `Ctrl/Cmd+Shift+C`.
+
+![PewPew retro green](docs/demo-green.png)
 - **Score / lives HUD** in the top-right, with a persistent high score and a
   `+points` tile that pops on the right each time you bust a rock.
 - **Move & resize, visually** — a dashed outline traces the window edge with 8
@@ -55,6 +62,7 @@ underneath.
 | Toggle **click-through** | `Ctrl/Cmd + Shift + O` |
 | Toggle **Play ↔ Ambient** | `Ctrl/Cmd + Shift + G` |
 | Pause | `Ctrl/Cmd + Shift + P` |
+| **Change color** | `Ctrl/Cmd + Shift + C` |
 | **Quit** | `Ctrl/Cmd + Shift + Q` |
 
 ### Moving, resizing & the controls
@@ -67,7 +75,8 @@ underneath.
   window edge. (Native edge-drag also works.)
 - **Show/hide controls:** the icon cluster and resize outline fade out after a
   few idle seconds — move the mouse into the **top-left corner** to reveal them.
-- **Icons (left → right):** ✕ quit · ◐ click-through · ⇄ play/ambient · ⏸ pause.
+- **Icons (left → right):** ✕ quit · ◐ click-through · ⇄ play/ambient · ⏸ pause
+  · ⬤ color (cycles White / Green / Amber / Cyan / Auto).
 
 > When click-through is **on**, the window ignores the mouse so clicks land on
 > whatever is behind it. The icon cluster stays clickable in the top-left —
