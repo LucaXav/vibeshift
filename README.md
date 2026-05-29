@@ -146,9 +146,11 @@ technique:
 - **`preload.js`** — a tiny `contextBridge` API (`window.pew`) so the renderer
   can request click-through, get notified of changes, and quit — without
   exposing Node to the page.
-- **`renderer/`** — the game. `game.js` draws white wireframes on a transparent
-  `<canvas>` (cleared to alpha 0 every frame), runs the physics/collision loop,
-  and handles the score HUD, modes, and the come-back handle.
+- **`renderer/`** — the game, split into small ES modules under `src/`. They
+  draw white wireframes on a transparent `<canvas>` (cleared to alpha 0 every
+  frame), run the physics/collision loop, and handle the score HUD, modes,
+  themes, and the come-back chrome. `src/main.js` is the entry point that wires
+  them together.
 
 The transparency only works because **every layer is transparent**: the page
 background, the body, and the canvas are all alpha 0, so only the white shapes
@@ -164,7 +166,19 @@ pewpew/
 ├── renderer/
 │   ├── index.html           # overlay markup (canvas + drag surface + HUD + controls)
 │   ├── style.css            # transparent, white, pixel-ish styling
-│   └── game.js              # the Asteroids engine + chrome/move/resize logic
+│   └── src/                 # the game, as focused ES modules
+│       ├── main.js          # entry: boots modules, runs the loop, wires IPC
+│       ├── config.js        # tunable constants + lookup tables
+│       ├── bridge.js        # the window.pew Electron bridge (or null in a browser)
+│       ├── view.js          # transparent canvas + DPR-aware sizing
+│       ├── utils.js         # rand/randi + toroidal screen wrap
+│       ├── state.js         # the shared mutable game state
+│       ├── entities.js      # ship / asteroid / particle factories
+│       ├── hud.js           # score-lives DOM overlay, banner, +N pops
+│       ├── engine.js        # lifecycle, input, physics + collision update
+│       ├── render.js        # draws the scene each frame
+│       ├── themes.js        # color themes + auto background sampling
+│       └── chrome.js        # auto-hide controls, move/resize, fullscreen
 ├── assets/                  # generated app icon (pewpew.png / pewpew.ico)
 ├── tools/
 │   ├── serve.js             # zero-dep static server for browser testing
